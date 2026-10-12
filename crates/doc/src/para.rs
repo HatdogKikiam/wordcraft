@@ -535,6 +535,9 @@ pub enum InlineObject {
         xml: String,
         #[serde(default)]
         text: String,
+        /// Relationships and package parts for opaque DOCX markup; remapped when saving.
+        #[serde(skip)]
+        embedded: Option<std::sync::Arc<crate::graphic::Embedded>>,
     },
 }
 
@@ -717,7 +720,7 @@ impl InlineObject {
     /// the column. Kept as the run element itself.
     pub fn note_separator(continuation: bool) -> InlineObject {
         let el = if continuation { "w:continuationSeparator" } else { "w:separator" };
-        InlineObject::Opaque { format: "docx".into(), xml: format!("<w:r><{el}/></w:r>"), text: String::new() }
+        InlineObject::Opaque { format: "docx".into(), xml: format!("<w:r><{el}/></w:r>"), text: String::new(), embedded: None }
     }
     /// For a [`InlineObject::note_separator`]: whether it is the continuation separator.
     pub fn as_note_separator(&self) -> Option<bool> {

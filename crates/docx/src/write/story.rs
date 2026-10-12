@@ -733,9 +733,23 @@ impl Writer<'_> {
                 w.close("w:r");
                 self.rev_close(w, props);
             }
-            InlineObject::Opaque { format, xml, text } => {
-                if format == "docx" && crate::xml::parse(xml.as_bytes()).is_ok() {
-                    w.raw(xml);
+            InlineObject::Opaque { format, xml, text, embedded } => {
+                if format == "docx" {
+                    let markup = match embedded {
+                        Some(embedded) => self.embedded_xml(embedded, rels, None),
+                        None if crate::xml::parse(xml.as_bytes()).is_ok() => Some(xml.clone()),
+                        None => None,
+                    };
+                    if let Some(markup) = markup {
+                        w.raw(&markup);
+                    } else if !text.is_empty() {
+                        self.rev_open(w, props);
+                        w.open("w:r", &[]);
+                        self.rpr(w, props);
+                        w.leaf("w:t", &[("xml:space", "preserve")], text);
+                        w.close("w:r");
+                        self.rev_close(w, props);
+                    }
                 } else if !text.is_empty() {
                     self.rev_open(w, props);
                     w.open("w:r", &[]);

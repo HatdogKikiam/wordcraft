@@ -878,6 +878,16 @@ impl Reader<'_> {
                 *slot = e.attr(n).and_then(|v| measure(v, 12_700.0)).unwrap_or(0.0).clamp(-1584.0, 1584.0);
             }
         }
+        if d.find("w14:contentPart").is_some()
+            && let Some(embedded) = self.keep_embedded(d, rels, &[])
+        {
+            return Some(InlineObject::Opaque {
+                format: "docx".into(),
+                xml: embedded.xml.clone(),
+                text: String::new(),
+                embedded: Some(embedded),
+            });
+        }
         let gd = c.child("a:graphic").and_then(|g| g.child("a:graphicData"))?;
         // Checked by URI before the blip search: a diagram's data can hold a blip further down.
         let uri = gd.attr("uri").unwrap_or("");

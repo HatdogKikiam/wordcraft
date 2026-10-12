@@ -1334,11 +1334,20 @@ fn hostile_model_values_still_write() {
     p.props.line_spacing = Some(LineSpacing::Multiple(f32::NAN));
     p.insert_object(
         0,
-        InlineObject::Opaque { format: "docx".into(), xml: "<w:r><w:t>raw</w:t></w:r>".into(), text: "raw".into() },
+        InlineObject::Opaque {
+            format: "docx".into(),
+            xml: "<w:r><w:t>raw</w:t></w:r>".into(),
+            text: "raw".into(),
+            embedded: None,
+        },
         &CharProps::default(),
     )
     .unwrap();
-    p.insert_object(0, InlineObject::Opaque { format: "docx".into(), xml: "<broken".into(), text: "fallback".into() }, &CharProps::default())
+    p.insert_object(
+        0,
+        InlineObject::Opaque { format: "docx".into(), xml: "<broken".into(), text: "fallback".into(), embedded: None },
+        &CharProps::default(),
+    )
         .unwrap();
     p.insert_object(
         0,

@@ -158,9 +158,12 @@ pub fn specs() -> Vec<CommandSpec> {
             .key(if cfg!(target_os = "macos") { "Ctrl+Shift+Right" } else { "Alt+Shift+Right" }),
         CommandSpec::new("para.shading", "Shading", "Home › Paragraph", |s, v| {
             let c = p::str(v, "color").and_then(Rgb::parse);
+            if let Some(on) = p::bool(v, "value") {
+                return fmt(s, &|p| p.shading = if on { Some(c.unwrap_or(Rgb(240, 240, 240))) } else { None });
+            }
             fmt(s, &|p| p.shading = c)
         })
-        .params(r#"{"color": "RRGGBB" | null}"#),
+        .params(r#"{"color"?: "RRGGBB" | null, "value"?: bool (when no color is given, true applies a light grey fill; false clears it)}"#),
         CommandSpec::new("para.borders", "Borders", "Home › Paragraph", borders).params(
             r#"{"kind": "bottom|top|left|right|none|all|outside|inside|horizontalLine", "width"?: pt, "color"?: "RRGGBB", "style"?: "single|double|dotted|dashed|thick|triple|dotDash|wave", "sides"?: Sides} where Sides = {"top"|"left"|"bottom"|"right"|"between": {"style"?, "width"?: pt, "color"?: "RRGGBB"} | null}: exactly these sides (others off), instead of `kind`"#,
         ),
@@ -796,6 +799,38 @@ fn borders(s: &mut Session, v: &Value) -> CmdResult {
     let color = p::str(v, "color").and_then(Rgb::parse);
     let style = p::str(v, "style").map(BorderStyle::from_ooxml).unwrap_or(BorderStyle::Single);
     let b = Border { style, width, color, space: if kind == "left" || kind == "right" { 4.0 } else { 1.0 } };
+    if let Some(on) = p::bool(v, "value") {
+        return fmt(s, &|p| {
+            let mut cur = p.borders.unwrap_or_default();
+            match kind {
+                "none" => cur = Borders::default(),
+                "all" => cur = if on { Borders::all(b) } else { Borders::default() },
+                "outside" => {
+                    if on {
+                        cur.top = Some(b);
+                        cur.bottom = Some(b);
+                        cur.left = Some(b);
+                        cur.right = Some(b);
+                    } else {
+                        cur.top = None;
+                        cur.bottom = None;
+                        cur.left = None;
+                        cur.right = None;
+                    }
+                }
+                "inside" => cur.between = if on { Some(b) } else { None },
+                "top" => cur.top = if on { Some(b) } else { None },
+                "bottom" => cur.bottom = if on { Some(b) } else { None },
+                "left" => cur.left = if on { Some(b) } else { None },
+                "right" => cur.right = if on { Some(b) } else { None },
+                "horizontalLine" => {
+                    cur.bottom = if on { Some(Border { width: 1.5, ..b }) } else { None };
+                }
+                _ => {}
+            }
+            p.borders = if cur.any_visible() { Some(cur) } else { Some(Borders::default()) };
+        });
+    }
     if kind == "horizontalLine" {
         // A paragraph with a bottom border, like Word's Horizontal Line.
         return fmt(s, &|p| p.borders = Some(Borders { bottom: Some(Border { width: 1.5, ..b }), ..Default::default() }));

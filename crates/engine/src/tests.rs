@@ -1,5 +1,5 @@
 use serde_json::json;
-use wordcraft_doc::props::BorderStyle;
+use wordcraft_doc::props::{BorderStyle, Rgb};
 use wordcraft_doc::{Pos, StoryRef};
 
 use crate::{Session, cmd};
@@ -123,6 +123,41 @@ fn reset_shortcuts_remove_direct_formatting_but_keep_styles() {
     run(&mut s, "caret.docEnd", json!({}));
     run(&mut s, "text.emDash", json!({}));
     assert_eq!(text(&s), "Hello world—");
+}
+
+#[test]
+fn paragraph_shading_and_border_commands_work() {
+    let mut s = s();
+    run(&mut s, "text.insert", json!({"text": "Note"}));
+
+    run(&mut s, "para.shading", json!({"color": "#E8F0FE"}));
+    let p = s.doc.para_at(&Pos::body(0, 0)).unwrap();
+    assert_eq!(p.props.shading, Some(Rgb(232, 240, 254)));
+
+    run(&mut s, "para.shading", json!({"value": false}));
+    let p = s.doc.para_at(&Pos::body(0, 0)).unwrap();
+    assert_eq!(p.props.shading, None);
+
+    run(&mut s, "para.borders", json!({"kind": "left", "style": "single", "width": 1.5, "color": "#666666"}));
+    let p = s.doc.para_at(&Pos::body(0, 0)).unwrap();
+    assert_eq!(
+        p.props.borders.as_ref().and_then(|b| b.left),
+        Some(wordcraft_doc::props::Border { style: BorderStyle::Single, width: 1.5, color: Some(Rgb(102, 102, 102)), space: 4.0 })
+    );
+
+    run(&mut s, "para.borders", json!({"kind": "left", "value": false}));
+    let p = s.doc.para_at(&Pos::body(0, 0)).unwrap();
+    assert_eq!(p.props.borders.as_ref().and_then(|b| b.left), None);
+
+    run(&mut s, "para.borders", json!({"kind": "left"}));
+    run(&mut s, "text.newParagraph", json!({}));
+    run(&mut s, "para.borders", json!({"kind": "right"}));
+    run(&mut s, "select.all", json!({}));
+    run(&mut s, "para.borders", json!({"kind": "left", "value": false}));
+    let first = s.doc.para_at(&Pos::body(0, 0)).unwrap();
+    let second = s.doc.para_at(&Pos::body(1, 0)).unwrap();
+    assert_eq!(first.props.borders.as_ref().and_then(|b| b.left), None);
+    assert!(second.props.borders.as_ref().and_then(|b| b.right).is_some(), "clear only the requested side on each selected paragraph");
 }
 
 #[test]
